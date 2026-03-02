@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { supabaseAdmin } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 // Zod schema for validation
 const leadSchema = z.object({
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
         const data = parsed.data;
 
         // Insert lead
-        const { data: lead, error: leadError } = await supabaseAdmin
+        const { data: lead, error: leadError } = await supabase
             .from('leads')
             .insert({
                 full_name: data.full_name,
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Update email_stats using the DB function
-        await supabaseAdmin.rpc('update_email_stats');
+        await supabase.rpc('update_email_stats');
 
         return NextResponse.json({ success: true, lead }, { status: 201 });
     } catch (err) {
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
         const from = (page - 1) * pageSize;
         const to = from + pageSize - 1;
 
-        let query = supabaseAdmin
+        let query = supabase
             .from('leads')
             .select('*', { count: 'exact' })
             .order('created_at', { ascending: false })

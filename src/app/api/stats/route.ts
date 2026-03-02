@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 export async function GET() {
     try {
-        // Fetch the single stats row
-        const { data: stats, error: statsError } = await supabaseAdmin
+        const { data: stats, error: statsError } = await supabase
             .from('email_stats')
             .select('*')
             .order('updated_at', { ascending: false })
@@ -12,8 +11,7 @@ export async function GET() {
             .single();
 
         if (statsError) {
-            // Try to recalculate on-the-fly if no row exists
-            const { count: totalLeads } = await supabaseAdmin
+            const { count: totalLeads } = await supabase
                 .from('leads')
                 .select('*', { count: 'exact', head: true });
 
@@ -26,8 +24,7 @@ export async function GET() {
             });
         }
 
-        // Also get total leads count
-        const { count: totalLeads } = await supabaseAdmin
+        const { count: totalLeads } = await supabase
             .from('leads')
             .select('*', { count: 'exact', head: true });
 
