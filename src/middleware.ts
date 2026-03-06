@@ -1,34 +1,56 @@
-import { getToken } from 'next-auth/jwt';
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
+import { NextResponse, type NextRequest } from 'next/server';
 
-export async function middleware(req: NextRequest) {
-    const { pathname } = req.nextUrl;
+export async function middleware(request: NextRequest) {
+    const { pathname } = request.nextUrl;
 
-    // Public routes - no auth required
-    if (
+    // Always allow these paths without auth check
+    const isPublic =
         pathname.startsWith('/login') ||
-        pathname.startsWith('/api/leads') ||
+        pathname.startsWith('/register') ||
+        pathname.startsWith('/api/leads') ||   // webhook — auth via API key header
         pathname.startsWith('/api/auth') ||
         pathname.startsWith('/api/stats') ||
         pathname.startsWith('/_next') ||
-        pathname === '/favicon.ico'
-    ) {
-        return NextResponse.next();
+        pathname === '/favicon.ico';
+
+    let supabaseResponse = NextResponse.next({ request });
+
+    const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+            cookies: {
+                getAll() {
+                    return request.cookies.getAll();
+                },
+                setAll(cookiesToSet) {
+                    cookiesToSet.forEach(({ name, value }) =>
+                        request.cookies.set(name, value)
+                    );
+                    supabaseResponse = NextResponse.next({ request });
+                    cookiesToSet.forEach(({ name, value, options }) =>
+                        supabaseResponse.cookies.set(name, value, options)
+                    );
+                },
+            },
+        }
+    );
+
+    // Refresh session — important: don't remove this
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (isPublic) {
+        return supabaseResponse;
     }
 
-    // Check JWT token
-    const token = await getToken({
-        req,
-        secret: process.env.NEXTAUTH_SECRET,
-    });
-
-    if (!token) {
-        const loginUrl = new URL('/login', req.url);
+    // Redirect unauthenticated users to login
+    if (!user) {
+        const loginUrl = new URL('/login', request.url);
         return NextResponse.redirect(loginUrl);
     }
 
-    return NextResponse.next();
+    return supabaseResponse;
 }
 
 export const config = {

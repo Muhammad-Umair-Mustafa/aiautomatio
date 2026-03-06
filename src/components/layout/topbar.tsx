@@ -1,6 +1,7 @@
 'use client';
 
-import { signOut, useSession } from 'next-auth/react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Moon, Sun, LogOut, ChevronDown } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 
 interface TopbarProps {
     title: string;
@@ -19,16 +21,39 @@ interface TopbarProps {
 }
 
 export default function Topbar({ title, subtitle }: TopbarProps) {
-    const { data: session } = useSession();
+    const router = useRouter();
     const { theme, setTheme } = useTheme();
+    const [email, setEmail] = useState<string>('');
+    const [name, setName] = useState<string>('');
 
-    const initials = session?.user?.name
-        ? session.user.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
-        : 'AD';
+    useEffect(() => {
+        void (async () => {
+            const supabase = createSupabaseBrowserClient();
+            const { data } = await supabase.auth.getUser();
+            if (data.user) {
+                setEmail(data.user.email ?? '');
+                const fullName = data.user.user_metadata?.full_name as string | undefined;
+                setName(fullName ?? data.user.email ?? 'User');
+            }
+        })();
+    }, []);
+
+    async function handleSignOut() {
+        const supabase = createSupabaseBrowserClient();
+        await supabase.auth.signOut();
+        router.push('/login');
+        router.refresh();
+    }
+
+    const initials = name
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2) || 'U';
 
     return (
         <header className="sticky top-0 z-10 flex items-center justify-between h-14 px-6 border-b bg-background/80 backdrop-blur-md border-border">
-            {/* Page title */}
             <div>
                 <h1 className="text-sm font-semibold text-foreground">{title}</h1>
                 {subtitle && (
@@ -36,7 +61,6 @@ export default function Topbar({ title, subtitle }: TopbarProps) {
                 )}
             </div>
 
-            {/* Right side */}
             <div className="flex items-center gap-2">
                 {/* Theme Toggle */}
                 <Button
@@ -59,19 +83,19 @@ export default function Topbar({ title, subtitle }: TopbarProps) {
                                     {initials}
                                 </AvatarFallback>
                             </Avatar>
-                            <span className="text-sm hidden sm:inline-flex">
-                                {session?.user?.name || 'Admin'}
+                            <span className="text-sm hidden sm:inline-flex truncate max-w-[120px]">
+                                {name || 'Loading…'}
                             </span>
                             <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-44">
+                    <DropdownMenuContent align="end" className="w-48">
                         <div className="px-2 py-1.5">
-                            <p className="text-xs font-medium truncate">{session?.user?.email}</p>
+                            <p className="text-xs font-medium truncate">{email}</p>
                         </div>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
-                            onClick={() => signOut({ callbackUrl: '/login' })}
+                            onClick={handleSignOut}
                             className="text-red-500 focus:text-red-500 cursor-pointer"
                         >
                             <LogOut className="mr-2 h-3.5 w-3.5" />
