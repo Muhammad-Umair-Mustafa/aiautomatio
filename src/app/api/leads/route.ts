@@ -55,10 +55,27 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Update email_stats using the DB function
-        await supabase.rpc('update_email_stats');
+        // Update email_stats inline (recalculate from leads table)
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+        const weekStart = new Date(now.setDate(now.getDate() - now.getDay())).toISOString();
+
+        const [{ count: totalSent }, { count: sentToday }, { count: sentWeek }] = await Promise.all([
+            supabase.from('leads').select('*', { count: 'exact', head: true }).eq('status', 'sent'),
+            supabase.from('leads').select('*', { count: 'exact', head: true }).eq('status', 'sent').gte('sent_at', todayStart),
+            supabase.from('leads').select('*', { count: 'exact', head: true }).eq('status', 'sent').gte('sent_at', weekStart),
+        ]);
+
+        await supabase.from('email_stats').update({
+            total_sent: totalSent ?? 0,
+            sent_today: sentToday ?? 0,
+            sent_this_week: sentWeek ?? 0,
+            last_sent_at: data.sent_at || new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        }).not('id', 'is', null);  // update the single row
 
         return NextResponse.json({ success: true, lead }, { status: 201 });
+
     } catch (err) {
         console.error('POST /api/leads error:', err);
         return NextResponse.json(
