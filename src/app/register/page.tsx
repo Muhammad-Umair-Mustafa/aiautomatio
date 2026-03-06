@@ -21,12 +21,12 @@ export default function RegisterPage() {
         e.preventDefault();
         startTransition(async () => {
             const supabase = createSupabaseBrowserClient();
-            const { error } = await supabase.auth.signUp({
+
+            const { data, error } = await supabase.auth.signUp({
                 email,
                 password,
                 options: {
                     data: { full_name: name },
-                    emailRedirectTo: `${window.location.origin}/dashboard`,
                 },
             });
 
@@ -35,7 +35,17 @@ export default function RegisterPage() {
                 return;
             }
 
-            toast.success('Account created! Redirecting to dashboard…');
+            if (!data.session) {
+                // Email confirmation required — tell user
+                toast.info('Check your email to confirm your account, then sign in.');
+                router.push('/login');
+                return;
+            }
+
+            // Provision API key + stats row on first login
+            await fetch('/api/keys').catch(() => { });
+
+            toast.success('Account created! Welcome to your dashboard.');
             router.push('/dashboard');
             router.refresh();
         });
