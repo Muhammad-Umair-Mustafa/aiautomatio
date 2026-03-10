@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 
-// GET /api/sequences — list user's sequences with step count
 export async function GET() {
     try {
         const client = await createSupabaseServerClient();
@@ -14,16 +13,19 @@ export async function GET() {
             .eq('user_id', user.id)
             .order('created_at', { ascending: false });
 
-        if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+        if (error) {
+            console.error('GET /api/sequences error:', error);
+            // Return empty array instead of 500 so UI doesn't crash
+            return NextResponse.json({ sequences: [], error: error.message });
+        }
 
-        return NextResponse.json({ sequences });
+        return NextResponse.json({ sequences: sequences ?? [] });
     } catch (err) {
         console.error(err);
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+        return NextResponse.json({ sequences: [], error: 'Internal server error' });
     }
 }
 
-// POST /api/sequences — create a new sequence
 export async function POST(request: NextRequest) {
     try {
         const client = await createSupabaseServerClient();
@@ -40,7 +42,6 @@ export async function POST(request: NextRequest) {
             .single();
 
         if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
         return NextResponse.json({ sequence: data }, { status: 201 });
     } catch (err) {
         console.error(err);
