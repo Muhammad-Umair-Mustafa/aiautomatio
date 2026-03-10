@@ -7,12 +7,14 @@ import {
     Mail,
     Settings,
     Zap,
+    GitMerge,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
     { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { label: 'Outreach', href: '/outreach', icon: Mail },
+    { label: 'Follow-ups', href: '/followups', icon: GitMerge },
     { label: 'Settings', href: '/settings', icon: Settings },
 ];
 
